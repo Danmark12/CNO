@@ -1,155 +1,89 @@
 <?php
-// index.php
 session_start();
+require 'db/config.php'; // your DB connection file
 
-// Grab and clear any flash message set by login.php
-$flash = $_SESSION['login_error'] ?? null;
-unset($_SESSION['login_error']);
+$error = '';
 
-// Preserve old email input if login failed
-$old_email = $_SESSION['old_email'] ?? '';
-unset($_SESSION['old_email']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['email']);
+    $password = trim($_POST['password']);
+
+    if (!empty($email) && !empty($password)) {
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && password_verify($password, $user['password_hash'])) {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_type'] = $user['user_type'];
+            $_SESSION['first_name'] = $user['first_name'];
+
+            // update last login
+            $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
+
+            // redirect based on role
+            if ($user['user_type'] === 'admin') {
+                header("Location: admin_dashboard.php");
+            } else {
+                header("Location: bns_dashboard.php");
+            }
+            exit;
+        } else {
+            $error = "Invalid email/username or password!";
+        }
+    } else {
+        $error = "All fields are required!";
+    }
+}
 ?>
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>CNO NutriMap — Login</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #fff;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 16px 24px;
-    }
-    header img {
-      height: 28px;
-    }
-    header span {
-      font-weight: bold;
-      font-size: 16px;
-    }
-    header span b {
-      color: #00AEEF; /* CNO in cyan/blue */
-    }
-    main {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .login-box {
-      text-align: center;
-      max-width: 360px;
-      width: 100%;
-    }
-    .login-box img {
-      height: 90px;
-      margin-bottom: 16px;
-    }
-    .login-box h2 {
-      margin: 0 0 20px;
-      font-size: 22px;
-      font-weight: bold;
-    }
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    input {
-      padding: 12px 14px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-      outline: none;
-      transition: border .2s;
-    }
-    input:focus {
-      border-color: #0B1C80;
-    }
-    .btn {
-      background: #0B1C80; /* deep navy */
-      color: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background .2s;
-    }
-    .btn:hover {
-      background: #08145c;
-    }
-    .links {
-      margin-top: 12px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-    }
-    .links a {
-      text-decoration: none;
-      color: #00AEEF;
-    }
-    .alert {
-      background: #fff5f5;
-      border: 1px solid #ffd2d2;
-      color: #7a0b0b;
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 12px;
-      font-size: 14px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>CNO NutriMap - Login</title>
 </head>
-<body>
-  <header>
-    <img src="assets/logo.png" alt="CNO Logo">
-    <span><b>CNO</b> NutriMap</span>
-  </header>
+<body style="margin:0; font-family: Arial, sans-serif; background:#fff;">
 
-  <main>
-    <div class="login-box">
-      <img src="assets/city-logo.png" alt="City Logo">
+  <!-- Header -->
+  <div style="display:flex; align-items:center; padding:15px 25px;">
+    <img src="image/241505183_2029324617215618_7371484540230229919_n (1).jpg" alt="CNO Logo" style="width:35px; height:35px; margin-right:8px;">
+    <h2 style="margin:0; font-size:18px; color:#00AEEF; font-weight:bold;">CNO <span style="color:#000;">NutriMap</span></h2>
+  </div>
 
-      <h2>LOGIN</h2>
+  <!-- Container -->
+  <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:80vh;">
 
-      <?php if ($flash): ?>
-        <div class="alert"><?= htmlspecialchars($flash) ?></div>
-      <?php endif; ?>
+    <!-- Seal -->
+    <img src="image/241505183_2029324617215618_7371484540230229919_n (1).jpg" alt="City Seal" style="width:80px; height:80px; margin-bottom:15px;">
 
-      <form action="login.php" method="post" autocomplete="off">
-        <input 
-          type="email" 
-          name="email" 
-          placeholder="Enter Email or Username" 
-          required 
-          value="<?= htmlspecialchars($old_email) ?>">
+    <!-- Title -->
+    <h2 style="margin:0 0 20px 0; font-weight:700;">LOGIN</h2>
 
-        <input 
-          type="password" 
-          name="password" 
-          placeholder="Enter Password" 
-          required>
+    <!-- Error -->
+    <?php if (!empty($error)): ?>
+      <p style="color:red; font-size:14px; margin-bottom:10px;"><?php echo $error; ?></p>
+    <?php endif; ?>
 
-        <button type="submit" class="btn">Log in</button>
-      </form>
+    <!-- Form -->
+    <form method="POST" action="" style="width:280px; text-align:center;">
+      <input type="text" name="email" placeholder="Enter Email or Username" required
+             style="width:100%; padding:10px; margin-bottom:12px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
 
-      <div class="links">
-        <a href="#">Forgot password?</a>
-        <a href="#">Just visit!</a>
-      </div>
+      <input type="password" name="password" placeholder="Enter Password" required
+             style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px; font-size:14px;">
+
+      <button type="submit"
+              style="width:100%; padding:10px; background:#000080; color:white; border:none; border-radius:6px; font-size:15px; font-weight:bold; cursor:pointer;">
+        Log in
+      </button>
+    </form>
+
+    <!-- Footer links -->
+    <div style="margin-top:10px; font-size:13px; width:280px; display:flex; justify-content:space-between;">
+      <a href="#" style="text-decoration:none; color:#555;">Forgot password?</a>
+      <a href="#" style="text-decoration:none; color:#00AEEF;">Just visit!</a>
     </div>
-  </main>
+  </div>
 </body>
 </html>
